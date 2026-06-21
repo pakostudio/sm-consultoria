@@ -644,7 +644,7 @@ function openModalCliente() {
 // ============================================================
 async function loadSidebarClientes() {
   if (!supabaseClient) return;
-  const { data } = await supabaseClient.schema('consultoria').from('clientes').select('id,nombre_empresa,score_global').eq('activo', true).order('nombre_empresa');
+  const { data } = await supabaseClient.from('cons_clientes').select('id,nombre_empresa,score_global').eq('activo', true).order('nombre_empresa');
   clientes = data || [];
   const list = document.getElementById('sidebar-clientes-list');
   if (!clientes.length) {
@@ -669,10 +669,10 @@ function scoreColor(s) {
 async function loadDashboard() {
   if (!supabaseClient) return;
   const [{ count: nc }, { count: na }, { count: ns }, { data: cd }] = await Promise.all([
-    supabaseClient.schema('consultoria').from('clientes').select('*', {count:'exact',head:true}).eq('activo',true),
-    supabaseClient.schema('consultoria').from('areas').select('*', {count:'exact',head:true}),
-    supabaseClient.schema('consultoria').from('sesiones').select('*', {count:'exact',head:true}).eq('procesada',true),
-    supabaseClient.schema('consultoria').from('clientes').select('id,nombre_empresa,score_global,giro').eq('activo',true).order('score_global',{ascending:false})
+    supabaseClient.from('cons_clientes').select('*', {count:'exact',head:true}).eq('activo',true),
+    supabaseClient.from('cons_areas').select('*', {count:'exact',head:true}),
+    supabaseClient.from('cons_sesiones').select('*', {count:'exact',head:true}).eq('procesada',true),
+    supabaseClient.from('cons_clientes').select('id,nombre_empresa,score_global,giro').eq('activo',true).order('score_global',{ascending:false})
   ]);
   document.getElementById('stat-clientes').textContent = nc || 0;
   document.getElementById('stat-areas').textContent = na || 0;
@@ -709,7 +709,7 @@ async function loadClientes() {
     document.getElementById('clientes-grid').innerHTML = '<div style="padding:40px;text-align:center;color:var(--rojo)">⚠️ Configura la Anon Key de Supabase en el código (línea SUPABASE_ANON_KEY)</div>';
     return;
   }
-  const { data } = await supabaseClient.schema('consultoria').from('clientes').select('*').eq('activo',true).order('nombre_empresa');
+  const { data } = await supabaseClient.from('cons_clientes').select('*').eq('activo',true).order('nombre_empresa');
   clientes = data || [];
   const grid = document.getElementById('clientes-grid');
   if (!clientes.length) {
@@ -762,7 +762,7 @@ async function guardarCliente() {
     notas_generales: document.getElementById('fc-notas').value,
     fecha_inicio_consultoria: new Date().toISOString().split('T')[0]
   };
-  const { error } = await supabaseClient.schema('consultoria').from('clientes').insert(data);
+  const { error } = await supabaseClient.from('cons_clientes').insert(data);
   if (error) return showToast('Error al guardar: ' + error.message, 'error');
   closeModal('modal-cliente');
   showToast('Cliente creado ✓', 'success');
@@ -783,11 +783,11 @@ async function abrirCliente(id) {
 async function loadClienteDetalle(id) {
   if (!supabaseClient) return;
   const [{ data: cliente }, { data: areas }, { data: sesiones }, { data: diagnostico }, { data: plan }] = await Promise.all([
-    supabaseClient.schema('consultoria').from('clientes').select('*').eq('id', id).single(),
-    supabaseClient.schema('consultoria').from('areas').select('*').eq('cliente_id', id).order('orden'),
-    supabaseClient.schema('consultoria').from('sesiones').select('*').eq('cliente_id', id).order('created_at', {ascending:false}),
-    supabaseClient.schema('consultoria').from('diagnosticos').select('*').eq('cliente_id', id).order('version', {ascending:false}).limit(1),
-    supabaseClient.schema('consultoria').from('planes_trabajo').select('*, sprints(*, acciones(*))').eq('cliente_id', id).order('created_at', {ascending:false}).limit(1)
+    supabaseClient.from('cons_clientes').select('*').eq('id', id).single(),
+    supabaseClient.from('cons_areas').select('*').eq('cliente_id', id).order('orden'),
+    supabaseClient.from('cons_sesiones').select('*').eq('cliente_id', id).order('created_at', {ascending:false}),
+    supabaseClient.from('cons_diagnosticos').select('*').eq('cliente_id', id).order('version', {ascending:false}).limit(1),
+    supabaseClient.from('cons_planes_trabajo').select('*, sprints(*, acciones(*))').eq('cliente_id', id).order('created_at', {ascending:false}).limit(1)
   ]);
 
   clienteActual = cliente;
@@ -1056,7 +1056,7 @@ async function guardarArea() {
     responsable_nombre: document.getElementById('fa-responsable').value,
     responsable_cargo: document.getElementById('fa-cargo').value,
   };
-  const { error } = await supabaseClient.schema('consultoria').from('areas').insert(data);
+  const { error } = await supabaseClient.from('cons_areas').insert(data);
   if (error) return showToast('Error: ' + error.message, 'error');
   closeModal('modal-area');
   showToast('Área creada ✓', 'success');
@@ -1071,7 +1071,7 @@ async function abrirCuestionario(areaId, areaNombre, areaTipo) {
   document.querySelector('#modal-cuestionario .modal-title').textContent = `Cuestionario — ${areaNombre}`;
   document.getElementById('modal-cuestionario-body').innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
 
-  const { data: existente } = await supabaseClient.schema('consultoria').from('cuestionarios').select('preguntas_json').eq('area_id', areaId).limit(1);
+  const { data: existente } = await supabaseClient.from('cons_cuestionarios').select('preguntas_json').eq('area_id', areaId).limit(1);
   if (existente?.[0]?.preguntas_json) {
     renderCuestionario(existente[0].preguntas_json, areaNombre);
     return;
@@ -1120,7 +1120,7 @@ Devuelve JSON con esta estructura exacta:
     const json = await res.json();
     const text = json.content?.[0]?.text || '{}';
     const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
-    await supabaseClient.schema('consultoria').from('cuestionarios').insert({ area_id: areaId, cliente_id: clienteActual?.id, preguntas_json: parsed });
+    await supabaseClient.from('cons_cuestionarios').insert({ area_id: areaId, cliente_id: clienteActual?.id, preguntas_json: parsed });
     renderCuestionario(parsed, areaNombre);
   } catch(e) {
     document.getElementById('modal-cuestionario-body').innerHTML = `<div style="color:var(--rojo);padding:20px">Error generando cuestionario. Verifica la API key de Claude.</div>`;
@@ -1195,7 +1195,7 @@ async function procesarTranscripcion() {
     progressText.textContent = progressSteps[step];
   }, 1200);
 
-  const { data: sesion, error: se } = await supabaseClient.schema('consultoria').from('sesiones').insert({
+  const { data: sesion, error: se } = await supabaseClient.from('cons_sesiones').insert({
     area_id: areaIdParaTrans, cliente_id: clienteIdParaTrans,
     transcripcion: trans, fecha_sesion: document.getElementById('ft-fecha').value,
     participantes: document.getElementById('ft-participantes').value, procesada: false
@@ -1204,8 +1204,8 @@ async function procesarTranscripcion() {
   if (se) { clearInterval(interval); return showToast('Error guardando sesión', 'error'); }
 
   try {
-    const { data: areaData } = await supabaseClient.schema('consultoria').from('areas').select('nombre,tipo').eq('id', areaIdParaTrans).single();
-    const { data: clienteData } = await supabaseClient.schema('consultoria').from('clientes').select('nombre_empresa,giro').eq('id', clienteIdParaTrans).single();
+    const { data: areaData } = await supabaseClient.from('cons_areas').select('nombre,tipo').eq('id', areaIdParaTrans).single();
+    const { data: clienteData } = await supabaseClient.from('cons_clientes').select('nombre_empresa,giro').eq('id', clienteIdParaTrans).single();
 
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
@@ -1241,11 +1241,11 @@ Devuelve JSON con esta estructura exacta:
     const text = json.content?.[0]?.text || '{}';
     const analisis = JSON.parse(text.replace(/```json|```/g,'').trim());
 
-    await supabaseClient.schema('consultoria').from('analisis').insert({
+    await supabaseClient.from('cons_analisis').insert({
       sesion_id: sesion.id, area_id: areaIdParaTrans, cliente_id: clienteIdParaTrans, ...analisis
     });
-    await supabaseClient.schema('consultoria').from('sesiones').update({ procesada: true }).eq('id', sesion.id);
-    await supabaseClient.schema('consultoria').from('areas').update({
+    await supabaseClient.from('cons_sesiones').update({ procesada: true }).eq('id', sesion.id);
+    await supabaseClient.from('cons_areas').update({
       nivel_madurez: analisis.nivel_madurez || 1,
       score_madurez: analisis.score_area || 0
     }).eq('id', areaIdParaTrans);
@@ -1272,8 +1272,8 @@ Devuelve JSON con esta estructura exacta:
 // ============================================================
 async function generarDiagnosticoConsolidado(clienteId) {
   showToast('Generando diagnóstico con IA...', '');
-  const { data: analisis } = await supabaseClient.schema('consultoria').from('analisis').select('*, areas(nombre)').eq('cliente_id', clienteId);
-  const { data: cliente } = await supabaseClient.schema('consultoria').from('clientes').select('*').eq('id', clienteId).single();
+  const { data: analisis } = await supabaseClient.from('cons_analisis').select('*, areas(nombre)').eq('cliente_id', clienteId);
+  const { data: cliente } = await supabaseClient.from('cons_clientes').select('*').eq('id', clienteId).single();
 
   if (!analisis?.length) return showToast('Procesa al menos una transcripción primero', 'error');
 
@@ -1349,7 +1349,7 @@ Devuelve JSON:
     const text = json.content?.[0]?.text || '{}';
     const data = JSON.parse(text.replace(/```json|```/g,'').trim());
 
-    const { data: diag } = await supabaseClient.schema('consultoria').from('diagnosticos').insert({
+    const { data: diag } = await supabaseClient.from('cons_diagnosticos').insert({
       cliente_id: clienteId,
       foda_fortalezas: data.foda_fortalezas,
       foda_debilidades: data.foda_debilidades,
@@ -1361,16 +1361,16 @@ Devuelve JSON:
       hallazgos_criticos: data.hallazgos_criticos
     }).select().single();
 
-    await supabaseClient.schema('consultoria').from('clientes').update({ score_global: data.score_global }).eq('id', clienteId);
+    await supabaseClient.from('cons_clientes').update({ score_global: data.score_global }).eq('id', clienteId);
 
     if (data.plan) {
-      const { data: plan } = await supabaseClient.schema('consultoria').from('planes_trabajo').insert({
+      const { data: plan } = await supabaseClient.from('cons_planes_trabajo').insert({
         cliente_id: clienteId, diagnostico_id: diag.id,
         titulo: data.plan.titulo, objetivo_general: data.plan.objetivo_general
       }).select().single();
 
       for (const sprint of (data.plan.sprints || [])) {
-        const { data: sprintDb } = await supabaseClient.schema('consultoria').from('sprints').insert({
+        const { data: sprintDb } = await supabaseClient.from('cons_sprints').insert({
           plan_id: plan.id, cliente_id: clienteId,
           numero: sprint.numero, titulo: sprint.titulo,
           objetivo: sprint.objetivo, okr_objetivo: sprint.okr_objetivo,
@@ -1378,7 +1378,7 @@ Devuelve JSON:
         }).select().single();
 
         for (const accion of (sprint.acciones || [])) {
-          await supabaseClient.schema('consultoria').from('acciones').insert({
+          await supabaseClient.from('cons_acciones').insert({
             sprint_id: sprintDb.id, plan_id: plan.id, cliente_id: clienteId,
             titulo: accion.titulo, responsable: accion.responsable,
             prioridad: accion.prioridad, semaforo: accion.semaforo
@@ -1402,8 +1402,8 @@ Devuelve JSON:
 // ============================================================
 async function exportarPDF(clienteId) {
   const { jsPDF } = window.jspdf;
-  const { data: cliente } = await supabaseClient.schema('consultoria').from('clientes').select('*').eq('id', clienteId).single();
-  const { data: diag } = await supabaseClient.schema('consultoria').from('diagnosticos').select('*').eq('cliente_id', clienteId).order('version', {ascending:false}).limit(1);
+  const { data: cliente } = await supabaseClient.from('cons_clientes').select('*').eq('id', clienteId).single();
+  const { data: diag } = await supabaseClient.from('cons_diagnosticos').select('*').eq('cliente_id', clienteId).order('version', {ascending:false}).limit(1);
   const d = diag?.[0];
 
   const doc = new jsPDF();
@@ -1487,9 +1487,9 @@ async function exportarPDF(clienteId) {
 // EXPORT WORD (HTML→BLOB)
 // ============================================================
 async function exportarWord(clienteId) {
-  const { data: cliente } = await supabaseClient.schema('consultoria').from('clientes').select('*').eq('id', clienteId).single();
-  const { data: diag } = await supabaseClient.schema('consultoria').from('diagnosticos').select('*').eq('cliente_id', clienteId).order('version',{ascending:false}).limit(1);
-  const { data: plan } = await supabaseClient.schema('consultoria').from('planes_trabajo').select('*, sprints(*, acciones(*))').eq('cliente_id', clienteId).order('created_at',{ascending:false}).limit(1);
+  const { data: cliente } = await supabaseClient.from('cons_clientes').select('*').eq('id', clienteId).single();
+  const { data: diag } = await supabaseClient.from('cons_diagnosticos').select('*').eq('cliente_id', clienteId).order('version',{ascending:false}).limit(1);
+  const { data: plan } = await supabaseClient.from('cons_planes_trabajo').select('*, sprints(*, acciones(*))').eq('cliente_id', clienteId).order('created_at',{ascending:false}).limit(1);
   const d = diag?.[0]; const p = plan?.[0];
 
   const html = `
