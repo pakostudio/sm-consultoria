@@ -1257,13 +1257,13 @@ async function procesarTranscripcion() {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 4000,
-        system: `Eres un consultor senior de SM Soluciones. Analizas transcripciones usando metodología de las grandes consultoras: McKinsey (hypothesis-driven), BCG (Issue Tree), KPMG (Pain/Gain Matrix), PwC (Maturity Model 1-5), Deloitte (stakeholder analysis). Responde SOLO en JSON válido, sin texto adicional ni markdown.`,
+        system: 'Eres consultor senior. Analiza y responde SOLO con JSON válido y completo. Sin texto adicional. Sin markdown. El JSON debe estar completo y bien cerrado.',
         messages: [{
           role: 'user',
           content: `Analiza esta transcripción del área ${areaData?.nombre} de la empresa ${clienteData?.nombre_empresa} (${clienteData?.giro}).
 
-TRANSCRIPCIÓN:
-${trans.substring(0, 6000)}
+TRANSCRIPCIÓN (primeros 5000 caracteres de ${trans.length} total):
+${trans.substring(0, 5000)}
 
 Devuelve JSON con esta estructura exacta:
 {
