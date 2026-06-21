@@ -7,6 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><rect width=%27100%27 height=%27100%27 rx=%2720%27 fill=%27%231B2F6E%27/><text y=%27.9em%27 font-size=%2770%27 x=%2750%27 text-anchor=%27middle%27 fill=%27%234DB8E8%27>S</text></svg>"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <style>
   :root {
     --azul-cielo: #4DB8E8;
@@ -526,9 +527,21 @@
             <input class="form-input" id="ft-participantes" placeholder="Nombres separados por coma"/>
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Transcripción de MeetGreek *</label>
-          <textarea class="form-textarea transcripcion-area" id="ft-transcripcion" placeholder="Pega aquí el texto completo de la transcripción..." style="min-height:280px"></textarea>
+        <div style="display:flex;gap:10px;margin-bottom:16px">
+          <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('ft-archivo').click()">📎 Subir .docx / .txt</button>
+          <input type="file" id="ft-archivo" accept=".docx,.doc,.txt,.pdf" style="display:none" onchange="cargarArchivo(this)"/>
+          <button class="btn btn-secondary" style="flex:1" onclick="togglePegar()">✏️ Pegar texto</button>
+        </div>
+        <div id="ft-archivo-info" class="hidden" style="background:#F0FDF4;border:1.5px solid var(--verde);border-radius:8px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:18px">📄</span>
+          <div><div id="ft-archivo-nombre" style="font-size:13px;font-weight:700;color:#065F46"></div><div id="ft-archivo-chars" style="font-size:11px;color:var(--gris-suave)"></div></div>
+          <button onclick="limpiarArchivo()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--gris-suave);font-size:18px">✕</button>
+        </div>
+        <div id="ft-pegar-area" class="hidden">
+          <div class="form-group">
+            <label class="form-label">Texto de la transcripción</label>
+            <textarea class="form-textarea transcripcion-area" id="ft-transcripcion" placeholder="Pega aquí el texto de MeetGreek..." style="min-height:220px"></textarea>
+          </div>
         </div>
         <div style="background:var(--fondo-beige);border:1px solid var(--borde);border-radius:8px;padding:14px;margin-top:8px">
           <div style="font-size:12px;color:var(--gris-suave);font-weight:600">🤖 Claude analizará con metodología McKinsey · BCG · KPMG · PwC · Deloitte</div>
@@ -1106,7 +1119,7 @@ async function abrirCuestionario(areaId, areaNombre, areaTipo) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 2000,
         system: `Eres un consultor senior de SM Soluciones. Genera cuestionarios de entrevista para diagnóstico organizacional usando metodología McKinsey (hypothesis-driven discovery) y Deloitte (entrevistas semiestructuradas). Responde SOLO en JSON válido, sin texto adicional.`,
         messages: [{
           role: 'user',
@@ -1235,7 +1248,7 @@ async function procesarTranscripcion() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 2000,
         system: `Eres un consultor senior de SM Soluciones. Analizas transcripciones usando metodología de las grandes consultoras: McKinsey (hypothesis-driven), BCG (Issue Tree), KPMG (Pain/Gain Matrix), PwC (Maturity Model 1-5), Deloitte (stakeholder analysis). Responde SOLO en JSON válido, sin texto adicional ni markdown.`,
         messages: [{
           role: 'user',
@@ -1315,7 +1328,7 @@ async function generarDiagnosticoConsolidado(clienteId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 2000,
         system: `Eres consultor senior de SM Soluciones. Generas diagnósticos ejecutivos y planes de trabajo basados en metodología McKinsey (Pirámide de Minto), FODA+CAME (Accenture), Porter, y planes Agile con OKRs. Responde SOLO en JSON válido.`,
         messages: [{
           role: 'user',
@@ -1671,4 +1684,87 @@ function guardarConfigKey() {
   document.getElementById('config-status').innerHTML = '<span style="color:var(--verde)">✓ Guardada correctamente</span>';
   setTimeout(() => { closeModal('modal-config'); showToast('API Key guardada ✓', 'success'); }, 800);
 }
+</script>
+<script>
+// ============================================================
+// MANEJO DE ARCHIVOS DE TRANSCRIPCIÓN
+// ============================================================
+let textoTranscripcionCargado = '';
+
+function togglePegar() {
+  const area = document.getElementById('ft-pegar-area');
+  area.classList.toggle('hidden');
+  if (!area.classList.contains('hidden')) {
+    document.getElementById('ft-transcripcion').focus();
+  }
+}
+
+function cargarArchivo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  
+  if (file.name.endsWith('.txt')) {
+    reader.onload = (e) => {
+      textoTranscripcionCargado = e.target.result;
+      mostrarArchivoInfo(file.name, textoTranscripcionCargado.length);
+    };
+    reader.readAsText(file);
+  } else if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+    // Para .docx usamos mammoth si disponible, sino leemos como texto
+    reader.onload = async (e) => {
+      try {
+        if (typeof mammoth !== 'undefined') {
+          const result = await mammoth.extractRawText({ arrayBuffer: e.target.result });
+          textoTranscripcionCargado = result.value;
+        } else {
+          // Fallback: extraer texto del ArrayBuffer
+          const decoder = new TextDecoder('utf-8', { fatal: false });
+          const text = decoder.decode(e.target.result);
+          // Extraer solo texto legible (remover XML tags)
+          textoTranscripcionCargado = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+        mostrarArchivoInfo(file.name, textoTranscripcionCargado.length);
+      } catch(err) {
+        showToast('Error leyendo archivo: ' + err.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  
+  // Ocultar área de pegar si hay archivo
+  document.getElementById('ft-pegar-area').classList.add('hidden');
+}
+
+function mostrarArchivoInfo(nombre, chars) {
+  document.getElementById('ft-archivo-info').classList.remove('hidden');
+  document.getElementById('ft-archivo-info').style.display = 'flex';
+  document.getElementById('ft-archivo-nombre').textContent = nombre;
+  document.getElementById('ft-archivo-chars').textContent = chars.toLocaleString() + ' caracteres cargados';
+}
+
+function limpiarArchivo() {
+  textoTranscripcionCargado = '';
+  document.getElementById('ft-archivo').value = '';
+  document.getElementById('ft-archivo-info').classList.add('hidden');
+}
+
+// Override procesarTranscripcion para usar archivo O texto pegado
+const _procesarOriginal = procesarTranscripcion;
+procesarTranscripcion = async function() {
+  // Obtener texto de archivo o de textarea
+  let trans = textoTranscripcionCargado || document.getElementById('ft-transcripcion')?.value?.trim() || '';
+  
+  if (!trans || trans.length < 50) {
+    return showToast('Sube un archivo o pega el texto de la transcripción', 'error');
+  }
+  
+  // Inyectar en el textarea para que el código original lo tome
+  const textarea = document.getElementById('ft-transcripcion');
+  if (textarea) textarea.value = trans;
+  
+  // Llamar al original
+  await _procesarOriginal();
+};
 </script>
