@@ -582,6 +582,7 @@
 const SUPABASE_URL = 'https://bljqlibgwvpflrtwgsef.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_09cUDYT1aBp4lJF1l1duUA_WLhJXCfb';
 const CLAUDE_API = 'https://api.anthropic.com/v1/messages';
+const CLAUDE_KEY = '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';
 
 let supabaseClient = null;
 let clienteActual = null;
@@ -1080,7 +1081,7 @@ async function abrirCuestionario(areaId, areaNombre, areaTipo) {
   try {
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': CLAUDE_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-calls': 'true' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
@@ -1209,7 +1210,7 @@ async function procesarTranscripcion() {
 
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': CLAUDE_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-calls': 'true' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
@@ -1289,7 +1290,7 @@ async function generarDiagnosticoConsolidado(clienteId) {
   try {
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': CLAUDE_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-calls': 'true' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
