@@ -1,0 +1,1575 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SM Soluciones — Plataforma de Consultoría</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --azul-cielo: #4DB8E8;
+    --azul-marino: #1B2F6E;
+    --azul-medio: #2B5BA1;
+    --gris-texto: #2C2C2C;
+    --gris-suave: #6B7280;
+    --fondo-blanco: #FFFFFF;
+    --fondo-gris: #F7F8FA;
+    --fondo-beige: #FAF9F7;
+    --borde: #E5E7EB;
+    --verde: #10B981;
+    --amarillo: #F59E0B;
+    --rojo: #EF4444;
+    --radio: 10px;
+    --sombra: 0 2px 12px rgba(27,47,110,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: var(--fondo-gris); color: var(--gris-texto); min-height: 100vh; }
+
+  /* SIDEBAR */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 240px;
+    background: var(--azul-marino); color: white; display: flex;
+    flex-direction: column; z-index: 100; overflow-y: auto;
+  }
+  .sidebar-logo {
+    padding: 24px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .sidebar-logo img { height: 36px; filter: brightness(0) invert(1); }
+  .sidebar-logo .tagline { font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 4px; letter-spacing: 0.5px; }
+  .sidebar-section { padding: 12px 0; }
+  .sidebar-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.4); padding: 0 20px 8px; letter-spacing: 1px; text-transform: uppercase; }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+    color: rgba(255,255,255,0.75); cursor: pointer; transition: all 0.15s;
+    font-size: 14px; border-left: 3px solid transparent;
+  }
+  .sidebar-item:hover { background: rgba(255,255,255,0.08); color: white; }
+  .sidebar-item.active { background: rgba(77,184,232,0.2); color: var(--azul-cielo); border-left-color: var(--azul-cielo); }
+  .sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .sidebar-clientes { padding: 8px 12px; }
+  .cliente-chip {
+    padding: 8px 12px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; color: rgba(255,255,255,0.7); transition: all 0.15s;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  .cliente-chip:hover { background: rgba(255,255,255,0.08); color: white; }
+  .cliente-chip.active { background: rgba(77,184,232,0.2); color: var(--azul-cielo); }
+  .cliente-score { font-size: 11px; font-weight: 700; }
+
+  /* MAIN */
+  .main { margin-left: 240px; min-height: 100vh; }
+  .topbar {
+    background: white; border-bottom: 1px solid var(--borde);
+    padding: 0 32px; height: 60px; display: flex; align-items: center;
+    justify-content: space-between; position: sticky; top: 0; z-index: 50;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .topbar-title { font-size: 18px; font-weight: 700; color: var(--azul-marino); }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .content { padding: 32px; }
+
+  /* BUTTONS */
+  .btn {
+    padding: 9px 18px; border-radius: var(--radio); border: none;
+    cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: var(--azul-marino); color: white; }
+  .btn-primary:hover { background: var(--azul-medio); }
+  .btn-secondary { background: white; color: var(--azul-marino); border: 1.5px solid var(--azul-marino); }
+  .btn-secondary:hover { background: var(--fondo-gris); }
+  .btn-sky { background: var(--azul-cielo); color: white; }
+  .btn-sky:hover { background: #3aa8d8; }
+  .btn-danger { background: #FEE2E2; color: var(--rojo); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-icon { padding: 8px; border-radius: 8px; background: var(--fondo-gris); border: 1px solid var(--borde); cursor: pointer; }
+
+  /* CARDS */
+  .card {
+    background: white; border-radius: var(--radio); border: 1px solid var(--borde);
+    box-shadow: var(--sombra); overflow: hidden;
+  }
+  .card-header { padding: 20px 24px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
+  .card-title { font-size: 16px; font-weight: 700; color: var(--azul-marino); }
+  .card-body { padding: 24px; }
+
+  /* GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+  /* STATS */
+  .stat-card {
+    background: white; border-radius: var(--radio); border: 1px solid var(--borde);
+    padding: 20px 24px; box-shadow: var(--sombra);
+  }
+  .stat-label { font-size: 12px; color: var(--gris-suave); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .stat-value { font-size: 32px; font-weight: 700; color: var(--azul-marino); line-height: 1; }
+  .stat-sub { font-size: 12px; color: var(--gris-suave); margin-top: 6px; }
+
+  /* SCORE RING */
+  .score-ring { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+  .score-ring svg { transform: rotate(-90deg); }
+  .score-ring .score-num { position: absolute; font-size: 20px; font-weight: 700; color: var(--azul-marino); }
+
+  /* SEMAFORO */
+  .semaforo { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .semaforo.verde { background: var(--verde); }
+  .semaforo.amarillo { background: var(--amarillo); }
+  .semaforo.rojo { background: var(--rojo); }
+
+  /* BADGE */
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .badge-green { background: #D1FAE5; color: #065F46; }
+  .badge-yellow { background: #FEF3C7; color: #92400E; }
+  .badge-red { background: #FEE2E2; color: #991B1B; }
+  .badge-blue { background: #DBEAFE; color: #1E40AF; }
+  .badge-gray { background: #F3F4F6; color: #374151; }
+
+  /* FORMS */
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 13px; font-weight: 600; color: var(--gris-texto); margin-bottom: 6px; display: block; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; padding: 10px 14px; border: 1.5px solid var(--borde);
+    border-radius: 8px; font-size: 14px; font-family: Arial, sans-serif;
+    color: var(--gris-texto); background: white; transition: border 0.15s;
+    outline: none;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--azul-cielo); }
+  .form-textarea { min-height: 120px; resize: vertical; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    z-index: 200; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal {
+    background: white; border-radius: 14px; width: 100%; max-width: 640px;
+    max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal-header {
+    padding: 24px 28px 16px; border-bottom: 1px solid var(--borde);
+    display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: white; z-index: 1;
+  }
+  .modal-title { font-size: 18px; font-weight: 700; color: var(--azul-marino); }
+  .modal-body { padding: 24px 28px; }
+  .modal-footer { padding: 16px 28px 24px; display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-close { background: none; border: none; cursor: pointer; color: var(--gris-suave); font-size: 20px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--borde); margin-bottom: 24px; }
+  .tab {
+    padding: 12px 20px; cursor: pointer; font-size: 14px; font-weight: 600;
+    color: var(--gris-suave); border-bottom: 2px solid transparent; margin-bottom: -2px;
+    transition: all 0.15s;
+  }
+  .tab.active { color: var(--azul-marino); border-bottom-color: var(--azul-cielo); }
+  .tab:hover { color: var(--azul-marino); }
+
+  /* ÁREA CARD */
+  .area-card {
+    border: 1.5px solid var(--borde); border-radius: var(--radio);
+    background: white; overflow: hidden; transition: box-shadow 0.15s;
+  }
+  .area-card:hover { box-shadow: var(--sombra); }
+  .area-card-header { padding: 16px 20px; background: var(--fondo-gris); display: flex; align-items: center; justify-content: space-between; }
+  .area-card-body { padding: 20px; }
+  .area-nombre { font-size: 15px; font-weight: 700; color: var(--azul-marino); }
+  .area-responsable { font-size: 12px; color: var(--gris-suave); margin-top: 2px; }
+
+  /* MADUREZ BAR */
+  .madurez-bar { height: 6px; background: var(--borde); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .madurez-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--azul-cielo), var(--azul-marino)); transition: width 0.5s; }
+
+  /* TABLA */
+  .tabla { width: 100%; border-collapse: collapse; }
+  .tabla th { background: var(--fondo-gris); padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: var(--gris-suave); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
+  .tabla td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  .tabla tr:last-child td { border-bottom: none; }
+  .tabla tr:hover td { background: var(--fondo-gris); }
+
+  /* FODA */
+  .foda-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1.5px solid var(--borde); border-radius: var(--radio); overflow: hidden; }
+  .foda-cell { padding: 20px; border: 1px solid var(--borde); }
+  .foda-cell h4 { font-size: 13px; font-weight: 700; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .foda-cell.F h4 { color: var(--verde); }
+  .foda-cell.O h4 { color: var(--azul-cielo); }
+  .foda-cell.D h4 { color: var(--amarillo); }
+  .foda-cell.A h4 { color: var(--rojo); }
+  .foda-item { font-size: 13px; color: var(--gris-texto); padding: 4px 0; padding-left: 16px; position: relative; }
+  .foda-item::before { content: '•'; position: absolute; left: 4px; }
+
+  /* AI PROCESSING */
+  .ai-processing {
+    background: linear-gradient(135deg, #EFF6FF, #F0F9FF);
+    border: 1.5px solid var(--azul-cielo); border-radius: var(--radio);
+    padding: 24px; text-align: center;
+  }
+  .ai-spinner { width: 40px; height: 40px; border: 3px solid var(--borde); border-top-color: var(--azul-cielo); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* PROGRESS */
+  .progress-bar { height: 8px; background: var(--borde); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--azul-cielo), var(--azul-marino)); transition: width 0.3s; }
+
+  /* SPRINT */
+  .sprint-card { border: 1.5px solid var(--borde); border-radius: var(--radio); overflow: hidden; margin-bottom: 16px; }
+  .sprint-header { padding: 14px 20px; background: var(--azul-marino); color: white; display: flex; align-items: center; justify-content: space-between; }
+  .sprint-body { padding: 16px 20px; }
+  .accion-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--borde); }
+  .accion-row:last-child { border-bottom: none; }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--gris-suave); }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-title { font-size: 18px; font-weight: 700; color: var(--azul-marino); margin-bottom: 8px; }
+  .empty-sub { font-size: 14px; margin-bottom: 24px; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--azul-marino);
+    color: white; padding: 14px 20px; border-radius: var(--radio);
+    font-size: 14px; font-weight: 600; z-index: 999;
+    box-shadow: 0 8px 24px rgba(27,47,110,0.3);
+    transform: translateY(100px); transition: transform 0.3s;
+  }
+  .toast.show { transform: translateY(0); }
+  .toast.success { background: var(--verde); }
+  .toast.error { background: var(--rojo); }
+
+  /* LOADING */
+  .loading { display: flex; align-items: center; justify-content: center; padding: 80px; }
+  .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--borde); border-top-color: var(--azul-marino); border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+  /* DIVIDER */
+  .divider { border: none; border-top: 1px solid var(--borde); margin: 24px 0; }
+
+  /* TRANSCRIPCION */
+  .transcripcion-area { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.7; min-height: 200px; }
+
+  /* RESULTADOS ANALISIS */
+  .resultado-section { margin-bottom: 24px; }
+  .resultado-section h4 { font-size: 14px; font-weight: 700; color: var(--azul-marino); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--azul-cielo); }
+  .dolor-item { background: #FFF7ED; border-left: 3px solid var(--amarillo); padding: 10px 14px; border-radius: 0 8px 8px 0; margin-bottom: 8px; font-size: 13px; }
+  .oportunidad-item { background: #F0FDF4; border-left: 3px solid var(--verde); padding: 10px 14px; border-radius: 0 8px 8px 0; margin-bottom: 8px; font-size: 13px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .sidebar { width: 200px; }
+    .main { margin-left: 200px; }
+    .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; }
+    .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  }
+
+  /* OCULTO */
+  .hidden { display: none !important; }
+  .page { display: none; }
+  .page.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div style="font-size:18px;font-weight:900;color:white;letter-spacing:-0.5px">SM <span style="color:var(--azul-cielo)">Soluciones</span></div>
+    <div class="tagline">PLATAFORMA DE CONSULTORÍA</div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">General</div>
+    <div class="sidebar-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </div>
+    <div class="sidebar-item" onclick="showPage('clientes')" id="nav-clientes">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Clientes
+    </div>
+  </div>
+
+  <div class="sidebar-section" style="flex:1">
+    <div class="sidebar-label">Clientes activos</div>
+    <div class="sidebar-clientes" id="sidebar-clientes-list">
+      <div style="font-size:12px;color:rgba(255,255,255,0.3);padding:8px 12px">Cargando...</div>
+    </div>
+  </div>
+
+  <div style="padding:16px 20px;border-top:1px solid rgba(255,255,255,0.1)">
+    <div style="font-size:11px;color:rgba(255,255,255,0.3)">SM Soluciones © 2026</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.2)">Different results require<br>different measures</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">Dashboard</div>
+    <div class="topbar-actions">
+      <button class="btn btn-sky" onclick="openModalCliente()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        Nuevo cliente
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- PÁGINA: DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="grid-4" style="margin-bottom:24px" id="dashboard-stats">
+        <div class="stat-card">
+          <div class="stat-label">Clientes activos</div>
+          <div class="stat-value" id="stat-clientes">0</div>
+          <div class="stat-sub">En consultoría</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Áreas analizadas</div>
+          <div class="stat-value" id="stat-areas">0</div>
+          <div class="stat-sub">Total acumulado</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Sesiones procesadas</div>
+          <div class="stat-value" id="stat-sesiones">0</div>
+          <div class="stat-sub">Transcripciones</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Score promedio</div>
+          <div class="stat-value" id="stat-score" style="color:var(--azul-cielo)">—</div>
+          <div class="stat-sub">Salud organizacional</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Comparativo de clientes</div>
+          </div>
+          <div class="card-body" id="dashboard-comparativo">
+            <div class="empty-state">
+              <div class="empty-icon">📊</div>
+              <div class="empty-title">Sin datos aún</div>
+              <div class="empty-sub">Agrega clientes y procesa transcripciones para ver el comparativo</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Acciones urgentes</div>
+          </div>
+          <div class="card-body" id="dashboard-acciones">
+            <div class="empty-state">
+              <div class="empty-icon">✅</div>
+              <div class="empty-title">Todo al día</div>
+              <div class="empty-sub">No hay acciones urgentes pendientes</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PÁGINA: CLIENTES -->
+    <div class="page" id="page-clientes">
+      <div id="clientes-grid" class="grid-3">
+        <div class="loading"><div class="loading-spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- PÁGINA: CLIENTE DETALLE -->
+    <div class="page" id="page-cliente">
+      <div id="cliente-detalle-content"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL: NUEVO CLIENTE -->
+<div class="modal-overlay hidden" id="modal-cliente">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-cliente-title">Nuevo cliente</div>
+      <button class="modal-close" onclick="closeModal('modal-cliente')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nombre de la empresa *</label>
+          <input class="form-input" id="fc-nombre" placeholder="Ej: Operadora Menlun"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Giro / Industria</label>
+          <input class="form-input" id="fc-giro" placeholder="Ej: Distribución química"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Producto o servicio principal</label>
+        <input class="form-input" id="fc-producto" placeholder="Describe brevemente qué vende o hace"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nombre del dueño / Director</label>
+          <input class="form-input" id="fc-dueno" placeholder="Nombre completo"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nombre del contacto</label>
+          <input class="form-input" id="fc-contacto" placeholder="Si es diferente al dueño"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="fc-email" type="email" placeholder="correo@empresa.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teléfono</label>
+          <input class="form-input" id="fc-telefono" placeholder="+52 55 1234 5678"/>
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Ubicación</label>
+          <input class="form-input" id="fc-ubicacion" placeholder="Ciudad, Estado"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Número de empleados</label>
+          <input class="form-input" id="fc-empleados" type="number" placeholder="50"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Años de antigüedad</label>
+          <input class="form-input" id="fc-antiguedad" type="number" placeholder="10"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notas generales / contexto inicial</label>
+        <textarea class="form-textarea" id="fc-notas" placeholder="¿Qué sabes del cliente antes de la primera reunión?" style="min-height:80px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-cliente')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCliente()">Guardar cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NUEVA ÁREA -->
+<div class="modal-overlay hidden" id="modal-area">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Nueva área</div>
+      <button class="modal-close" onclick="closeModal('modal-area')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nombre del área *</label>
+          <input class="form-input" id="fa-nombre" placeholder="Ej: Ventas, Logística, RH..."/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de área</label>
+          <select class="form-select" id="fa-tipo">
+            <option value="ventas">Ventas / Comercial</option>
+            <option value="logistica">Logística / Distribución</option>
+            <option value="almacen">Almacén / Inventario</option>
+            <option value="produccion">Producción / Operaciones</option>
+            <option value="rh">Recursos Humanos</option>
+            <option value="finanzas">Finanzas / Administración</option>
+            <option value="marketing">Marketing / Comunicación</option>
+            <option value="tecnologia">Tecnología / Sistemas</option>
+            <option value="direccion">Dirección General</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nombre del responsable</label>
+          <input class="form-input" id="fa-responsable" placeholder="Nombre del jefe de área"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cargo</label>
+          <input class="form-input" id="fa-cargo" placeholder="Ej: Gerente de Ventas"/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-area')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarArea()">Crear área</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: TRANSCRIPCIÓN + ANÁLISIS -->
+<div class="modal-overlay hidden" id="modal-transcripcion">
+  <div class="modal" style="max-width:800px">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-trans-title">Procesar transcripción</div>
+      <button class="modal-close" onclick="closeModal('modal-transcripcion')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="trans-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Fecha de la sesión</label>
+            <input class="form-input" id="ft-fecha" type="date"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Participantes</label>
+            <input class="form-input" id="ft-participantes" placeholder="Nombres separados por coma"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Transcripción de MeetGreek *</label>
+          <textarea class="form-textarea transcripcion-area" id="ft-transcripcion" placeholder="Pega aquí el texto completo de la transcripción..." style="min-height:280px"></textarea>
+        </div>
+        <div style="background:var(--fondo-beige);border:1px solid var(--borde);border-radius:8px;padding:14px;margin-top:8px">
+          <div style="font-size:12px;color:var(--gris-suave);font-weight:600">🤖 Claude analizará con metodología McKinsey · BCG · KPMG · PwC · Deloitte</div>
+          <div style="font-size:11px;color:var(--gris-suave);margin-top:4px">Puntos de dolor · Issue Tree · Pain/Gain Matrix · FODA · Nivel de madurez 1-5 · Score 0-100</div>
+        </div>
+      </div>
+      <div id="trans-processing" class="hidden">
+        <div class="ai-processing">
+          <div class="ai-spinner"></div>
+          <div style="font-size:15px;font-weight:700;color:var(--azul-marino);margin-bottom:8px">Analizando transcripción...</div>
+          <div id="trans-progress-text" style="font-size:13px;color:var(--gris-suave)">Aplicando metodología McKinsey · BCG · KPMG</div>
+          <div class="progress-bar" style="margin-top:16px;max-width:300px;margin-left:auto;margin-right:auto">
+            <div class="progress-fill" id="trans-progress-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" id="trans-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-transcripcion')">Cancelar</button>
+      <button class="btn btn-sky" onclick="procesarTranscripcion()">
+        🤖 Analizar con IA
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CUESTIONARIO -->
+<div class="modal-overlay hidden" id="modal-cuestionario">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header">
+      <div class="modal-title">Cuestionario de entrevista</div>
+      <button class="modal-close" onclick="closeModal('modal-cuestionario')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-cuestionario-body">
+      <div class="loading"><div class="loading-spinner"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-cuestionario')">Cerrar</button>
+      <button class="btn btn-primary" onclick="imprimirCuestionario()">🖨️ Imprimir</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const SUPABASE_URL = 'https://bljqlibgwvpflrtwgsef.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_09cUDYT1aBp4lJF1l1duUA_WLhJXCfb';
+const CLAUDE_API = 'https://api.anthropic.com/v1/messages';
+
+let supabaseClient = null;
+let clienteActual = null;
+let areaActual = null;
+let clientes = [];
+
+// Init Supabase
+function initSupabase() {
+  if (typeof supabase !== 'undefined') {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+}
+
+// ============================================================
+// NAVEGACIÓN
+// ============================================================
+function showPage(page, clienteId = null) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  document.querySelectorAll('.cliente-chip').forEach(c => c.classList.remove('active'));
+
+  document.getElementById('page-' + page).classList.add('active');
+  if (document.getElementById('nav-' + page)) {
+    document.getElementById('nav-' + page).classList.add('active');
+  }
+
+  const titles = { dashboard: 'Dashboard', clientes: 'Clientes', cliente: clienteActual?.nombre_empresa || 'Cliente' };
+  document.getElementById('topbar-title').textContent = titles[page] || '';
+
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'clientes') loadClientes();
+  if (page === 'cliente' && clienteId) loadClienteDetalle(clienteId);
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+// ============================================================
+// MODALES
+// ============================================================
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function openModalCliente() {
+  document.getElementById('modal-cliente-title').textContent = 'Nuevo cliente';
+  ['nombre','giro','producto','dueno','contacto','email','telefono','ubicacion','empleados','antiguedad','notas'].forEach(f => {
+    document.getElementById('fc-' + f).value = '';
+  });
+  openModal('modal-cliente');
+}
+
+// ============================================================
+// CLIENTES
+// ============================================================
+async function loadSidebarClientes() {
+  if (!supabaseClient) return;
+  const { data } = await supabaseClient.schema('consultoria').from('clientes').select('id,nombre_empresa,score_global').eq('activo', true).order('nombre_empresa');
+  clientes = data || [];
+  const list = document.getElementById('sidebar-clientes-list');
+  if (!clientes.length) {
+    list.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.3);padding:8px 12px">Sin clientes aún</div>';
+    return;
+  }
+  list.innerHTML = clientes.map(c => `
+    <div class="cliente-chip" id="chip-${c.id}" onclick="abrirCliente('${c.id}')">
+      <span>${c.nombre_empresa}</span>
+      <span class="cliente-score" style="color:${scoreColor(c.score_global)}">${c.score_global || '—'}</span>
+    </div>
+  `).join('');
+}
+
+function scoreColor(s) {
+  if (!s) return 'rgba(255,255,255,0.3)';
+  if (s >= 70) return '#10B981';
+  if (s >= 40) return '#F59E0B';
+  return '#EF4444';
+}
+
+async function loadDashboard() {
+  if (!supabaseClient) return;
+  const [{ count: nc }, { count: na }, { count: ns }, { data: cd }] = await Promise.all([
+    supabaseClient.schema('consultoria').from('clientes').select('*', {count:'exact',head:true}).eq('activo',true),
+    supabaseClient.schema('consultoria').from('areas').select('*', {count:'exact',head:true}),
+    supabaseClient.schema('consultoria').from('sesiones').select('*', {count:'exact',head:true}).eq('procesada',true),
+    supabaseClient.schema('consultoria').from('clientes').select('id,nombre_empresa,score_global,giro').eq('activo',true).order('score_global',{ascending:false})
+  ]);
+  document.getElementById('stat-clientes').textContent = nc || 0;
+  document.getElementById('stat-areas').textContent = na || 0;
+  document.getElementById('stat-sesiones').textContent = ns || 0;
+  const scores = (cd||[]).filter(c => c.score_global > 0);
+  document.getElementById('stat-score').textContent = scores.length ? Math.round(scores.reduce((a,c) => a+c.score_global,0)/scores.length) : '—';
+
+  // Comparativo
+  const comp = document.getElementById('dashboard-comparativo');
+  if (cd && cd.length) {
+    comp.innerHTML = `<table class="tabla">
+      <thead><tr><th>Cliente</th><th>Giro</th><th>Score</th><th>Estado</th></tr></thead>
+      <tbody>${cd.map(c => `
+        <tr style="cursor:pointer" onclick="abrirCliente('${c.id}')">
+          <td><strong>${c.nombre_empresa}</strong></td>
+          <td style="color:var(--gris-suave)">${c.giro||'—'}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;height:6px;background:var(--borde);border-radius:3px;overflow:hidden;width:80px">
+                <div style="height:100%;width:${c.score_global||0}%;background:${scoreColor(c.score_global)};border-radius:3px"></div>
+              </div>
+              <span style="font-weight:700;color:${scoreColor(c.score_global)}">${c.score_global||'—'}</span>
+            </div>
+          </td>
+          <td><span class="badge ${c.score_global>=70?'badge-green':c.score_global>=40?'badge-yellow':'badge-gray'}">${c.score_global>=70?'Saludable':c.score_global>=40?'En proceso':'Sin datos'}</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  }
+}
+
+async function loadClientes() {
+  if (!supabaseClient) {
+    document.getElementById('clientes-grid').innerHTML = '<div style="padding:40px;text-align:center;color:var(--rojo)">⚠️ Configura la Anon Key de Supabase en el código (línea SUPABASE_ANON_KEY)</div>';
+    return;
+  }
+  const { data } = await supabaseClient.schema('consultoria').from('clientes').select('*').eq('activo',true).order('nombre_empresa');
+  clientes = data || [];
+  const grid = document.getElementById('clientes-grid');
+  if (!clientes.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1"><div class="empty-state">
+      <div class="empty-icon">🏢</div>
+      <div class="empty-title">Sin clientes aún</div>
+      <div class="empty-sub">Agrega tu primer cliente para comenzar</div>
+      <button class="btn btn-primary" onclick="openModalCliente()">+ Nuevo cliente</button>
+    </div></div>`;
+    return;
+  }
+  grid.innerHTML = clientes.map(c => `
+    <div class="card" style="cursor:pointer" onclick="abrirCliente('${c.id}')">
+      <div style="height:6px;background:${scoreColor(c.score_global)}"></div>
+      <div class="card-body">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--azul-marino)">${c.nombre_empresa}</div>
+            <div style="font-size:12px;color:var(--gris-suave);margin-top:2px">${c.giro||''}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:22px;font-weight:700;color:${scoreColor(c.score_global)}">${c.score_global||'—'}</div>
+            <div style="font-size:10px;color:var(--gris-suave)">Score</div>
+          </div>
+        </div>
+        <div style="font-size:13px;color:var(--gris-suave);margin-bottom:12px">${c.ubicacion||''} ${c.num_empleados?'· '+c.num_empleados+' emp.':''}</div>
+        <div style="display:flex;gap:8px">
+          <span class="badge badge-blue">${c.nombre_contacto||c.nombre_dueno||'Sin contacto'}</span>
+          ${c.antiguedad_anos?`<span class="badge badge-gray">${c.antiguedad_anos} años</span>`:''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function guardarCliente() {
+  const nombre = document.getElementById('fc-nombre').value.trim();
+  if (!nombre) return showToast('El nombre es requerido', 'error');
+  const data = {
+    nombre_empresa: nombre,
+    giro: document.getElementById('fc-giro').value,
+    producto_servicio: document.getElementById('fc-producto').value,
+    nombre_dueno: document.getElementById('fc-dueno').value,
+    nombre_contacto: document.getElementById('fc-contacto').value,
+    email_contacto: document.getElementById('fc-email').value,
+    telefono_contacto: document.getElementById('fc-telefono').value,
+    ubicacion: document.getElementById('fc-ubicacion').value,
+    num_empleados: parseInt(document.getElementById('fc-empleados').value)||null,
+    antiguedad_anos: parseInt(document.getElementById('fc-antiguedad').value)||null,
+    notas_generales: document.getElementById('fc-notas').value,
+    fecha_inicio_consultoria: new Date().toISOString().split('T')[0]
+  };
+  const { error } = await supabaseClient.schema('consultoria').from('clientes').insert(data);
+  if (error) return showToast('Error al guardar: ' + error.message, 'error');
+  closeModal('modal-cliente');
+  showToast('Cliente creado ✓', 'success');
+  await loadSidebarClientes();
+  loadClientes();
+}
+
+// ============================================================
+// CLIENTE DETALLE
+// ============================================================
+async function abrirCliente(id) {
+  document.querySelectorAll('.cliente-chip').forEach(c => c.classList.remove('active'));
+  const chip = document.getElementById('chip-' + id);
+  if (chip) chip.classList.add('active');
+  showPage('cliente', id);
+}
+
+async function loadClienteDetalle(id) {
+  if (!supabaseClient) return;
+  const [{ data: cliente }, { data: areas }, { data: sesiones }, { data: diagnostico }, { data: plan }] = await Promise.all([
+    supabaseClient.schema('consultoria').from('clientes').select('*').eq('id', id).single(),
+    supabaseClient.schema('consultoria').from('areas').select('*').eq('cliente_id', id).order('orden'),
+    supabaseClient.schema('consultoria').from('sesiones').select('*').eq('cliente_id', id).order('created_at', {ascending:false}),
+    supabaseClient.schema('consultoria').from('diagnosticos').select('*').eq('cliente_id', id).order('version', {ascending:false}).limit(1),
+    supabaseClient.schema('consultoria').from('planes_trabajo').select('*, sprints(*, acciones(*))').eq('cliente_id', id).order('created_at', {ascending:false}).limit(1)
+  ]);
+
+  clienteActual = cliente;
+  document.getElementById('topbar-title').textContent = cliente.nombre_empresa;
+
+  const diag = diagnostico?.[0];
+  const planData = plan?.[0];
+
+  document.getElementById('cliente-detalle-content').innerHTML = `
+    <!-- HEADER CLIENTE -->
+    <div class="card" style="margin-bottom:24px">
+      <div style="height:8px;background:linear-gradient(90deg,var(--azul-cielo),var(--azul-marino))"></div>
+      <div class="card-body">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px">
+          <div>
+            <div style="font-size:24px;font-weight:700;color:var(--azul-marino)">${cliente.nombre_empresa}</div>
+            <div style="font-size:14px;color:var(--gris-suave);margin-top:4px">${cliente.giro||''} ${cliente.ubicacion?'· '+cliente.ubicacion:''}</div>
+            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+              ${cliente.nombre_dueno?`<span class="badge badge-blue">👤 ${cliente.nombre_dueno}</span>`:''}
+              ${cliente.num_empleados?`<span class="badge badge-gray">👥 ${cliente.num_empleados} empleados</span>`:''}
+              ${cliente.antiguedad_anos?`<span class="badge badge-gray">📅 ${cliente.antiguedad_anos} años</span>`:''}
+              ${cliente.fecha_inicio_consultoria?`<span class="badge badge-green">Inicio: ${cliente.fecha_inicio_consultoria}</span>`:''}
+            </div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:48px;font-weight:900;color:${scoreColor(cliente.score_global)};line-height:1">${cliente.score_global||'—'}</div>
+            <div style="font-size:12px;color:var(--gris-suave);font-weight:600">SCORE GLOBAL</div>
+            <div style="font-size:11px;color:var(--gris-suave)">de 100</div>
+          </div>
+        </div>
+        ${cliente.producto_servicio?`<div style="margin-top:16px;padding:12px 16px;background:var(--fondo-gris);border-radius:8px;font-size:13px;color:var(--gris-texto)">${cliente.producto_servicio}</div>`:''}
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs" id="cliente-tabs">
+      <div class="tab active" onclick="showTab('areas')">Áreas (${areas?.length||0})</div>
+      <div class="tab" onclick="showTab('diagnostico')">Diagnóstico & FODA</div>
+      <div class="tab" onclick="showTab('plan')">Plan de trabajo</div>
+      <div class="tab" onclick="showTab('sesiones')">Sesiones (${sesiones?.length||0})</div>
+    </div>
+
+    <!-- TAB: ÁREAS -->
+    <div id="tab-areas">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px;gap:10px">
+        <button class="btn btn-secondary" onclick="generarDiagnosticoConsolidado('${id}')">🤖 Generar diagnóstico</button>
+        <button class="btn btn-primary" onclick="openModalArea('${id}')">+ Nueva área</button>
+      </div>
+      ${!areas?.length ? `
+        <div class="empty-state">
+          <div class="empty-icon">🗂️</div>
+          <div class="empty-title">Sin áreas definidas</div>
+          <div class="empty-sub">Crea las áreas del cliente para comenzar el diagnóstico por área</div>
+          <button class="btn btn-primary" onclick="openModalArea('${id}')">+ Crear primera área</button>
+        </div>` :
+        `<div class="grid-2">${areas.map(a => renderAreaCard(a, id)).join('')}</div>`
+      }
+    </div>
+
+    <!-- TAB: DIAGNÓSTICO -->
+    <div id="tab-diagnostico" class="hidden">
+      ${diag ? renderDiagnostico(diag) : `
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-title">Sin diagnóstico aún</div>
+          <div class="empty-sub">Procesa al menos una transcripción por área y luego genera el diagnóstico consolidado</div>
+          <button class="btn btn-sky" onclick="generarDiagnosticoConsolidado('${id}')">🤖 Generar diagnóstico con IA</button>
+        </div>`
+      }
+    </div>
+
+    <!-- TAB: PLAN -->
+    <div id="tab-plan" class="hidden">
+      ${planData ? renderPlan(planData) : `
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <div class="empty-title">Sin plan de trabajo</div>
+          <div class="empty-sub">Genera primero el diagnóstico para que Claude construya el plan de trabajo</div>
+          <button class="btn btn-sky" onclick="generarDiagnosticoConsolidado('${id}')">🤖 Generar diagnóstico y plan</button>
+        </div>`
+      }
+    </div>
+
+    <!-- TAB: SESIONES -->
+    <div id="tab-sesiones" class="hidden">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+        <button class="btn btn-secondary btn-sm" onclick="exportarWord('${id}')">📄 Exportar Word</button>
+        <button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="exportarPDF('${id}')">📑 Exportar PDF</button>
+      </div>
+      ${!sesiones?.length ? `
+        <div class="empty-state">
+          <div class="empty-icon">🎙️</div>
+          <div class="empty-title">Sin sesiones registradas</div>
+          <div class="empty-sub">Las transcripciones procesadas aparecerán aquí</div>
+        </div>` :
+        `<div class="grid-2">${sesiones.map(s => `
+          <div class="card">
+            <div class="card-body">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <strong style="font-size:14px">${s.fecha_sesion||'Sin fecha'}</strong>
+                <span class="badge ${s.procesada?'badge-green':'badge-gray'}">${s.procesada?'Procesada':'Pendiente'}</span>
+              </div>
+              <div style="font-size:12px;color:var(--gris-suave)">${s.participantes||''}</div>
+              ${s.transcripcion?`<div style="font-size:12px;color:var(--gris-suave);margin-top:8px">${s.transcripcion.substring(0,120)}...</div>`:''}
+            </div>
+          </div>`).join('')}
+        </div>`
+      }
+    </div>
+  `;
+}
+
+function showTab(name) {
+  ['areas','diagnostico','plan','sesiones'].forEach(t => {
+    document.getElementById('tab-'+t)?.classList.add('hidden');
+  });
+  document.getElementById('tab-'+name)?.classList.remove('hidden');
+  document.querySelectorAll('#cliente-tabs .tab').forEach((t,i) => {
+    t.classList.toggle('active', ['areas','diagnostico','plan','sesiones'][i] === name);
+  });
+}
+
+function renderAreaCard(area, clienteId) {
+  const nivel = area.nivel_madurez || 1;
+  const score = area.score_madurez || 0;
+  const nivelLabel = ['','Inicial','Básico','Definido','Gestionado','Optimizado'][nivel];
+  return `
+    <div class="area-card">
+      <div class="area-card-header">
+        <div>
+          <div class="area-nombre">${area.nombre}</div>
+          <div class="area-responsable">${area.responsable_nombre||''} ${area.responsable_cargo?'· '+area.responsable_cargo:''}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:20px;font-weight:700;color:${scoreColor(score)}">${score||'—'}</div>
+          <div style="font-size:10px;color:var(--gris-suave)">Score</div>
+        </div>
+      </div>
+      <div class="area-card-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:12px;color:var(--gris-suave)">Madurez: <strong>${nivelLabel}</strong></span>
+          <span style="font-size:12px;font-weight:700;color:var(--azul-medio)">${nivel}/5</span>
+        </div>
+        <div class="madurez-bar">
+          <div class="madurez-fill" style="width:${nivel*20}%"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="abrirCuestionario('${area.id}','${area.nombre}','${area.tipo||'otro'}')">📋 Cuestionario</button>
+          <button class="btn btn-sky btn-sm" onclick="abrirTranscripcion('${area.id}','${area.nombre}','${clienteId}')">🎙️ Transcripción</button>
+          ${area.completada?'<span class="badge badge-green">✓ Completada</span>':''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDiagnostico(diag) {
+  const f = diag.foda_fortalezas || [];
+  const d = diag.foda_debilidades || [];
+  const o = diag.foda_oportunidades || [];
+  const a = diag.foda_amenazas || [];
+  return `
+    <div style="margin-bottom:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:18px;font-weight:700;color:var(--azul-marino)">Diagnóstico ejecutivo</div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-secondary btn-sm" onclick="exportarWord('${diag.cliente_id}')">📄 Word</button>
+          <button class="btn btn-secondary btn-sm" onclick="exportarPDF('${diag.cliente_id}')">📑 PDF</button>
+        </div>
+      </div>
+      ${diag.resumen_ejecutivo?`
+        <div style="background:var(--fondo-beige);border-left:4px solid var(--azul-cielo);padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;font-size:14px;line-height:1.7">
+          ${diag.resumen_ejecutivo}
+        </div>`:''}
+      <div style="margin-bottom:24px">
+        <div style="font-size:15px;font-weight:700;color:var(--azul-marino);margin-bottom:12px">FODA Estratégico</div>
+        <div class="foda-grid">
+          <div class="foda-cell F">
+            <h4>🟢 Fortalezas</h4>
+            ${f.map(i=>`<div class="foda-item">${i}</div>`).join('')||'<div style="font-size:12px;color:var(--gris-suave)">Sin datos</div>'}
+          </div>
+          <div class="foda-cell O">
+            <h4>🔵 Oportunidades</h4>
+            ${o.map(i=>`<div class="foda-item">${i}</div>`).join('')||'<div style="font-size:12px;color:var(--gris-suave)">Sin datos</div>'}
+          </div>
+          <div class="foda-cell D">
+            <h4>🟡 Debilidades</h4>
+            ${d.map(i=>`<div class="foda-item">${i}</div>`).join('')||'<div style="font-size:12px;color:var(--gris-suave)">Sin datos</div>'}
+          </div>
+          <div class="foda-cell A">
+            <h4>🔴 Amenazas</h4>
+            ${a.map(i=>`<div class="foda-item">${i}</div>`).join('')||'<div style="font-size:12px;color:var(--gris-suave)">Sin datos</div>'}
+          </div>
+        </div>
+      </div>
+      ${diag.scorecard_areas?`
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--azul-marino);margin-bottom:12px">Scorecard por área</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            ${Object.entries(diag.scorecard_areas).map(([area,score])=>`
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:140px;font-size:13px;font-weight:600">${area}</div>
+                <div style="flex:1;height:8px;background:var(--borde);border-radius:4px;overflow:hidden">
+                  <div style="height:100%;width:${score}%;background:${scoreColor(score)};border-radius:4px"></div>
+                </div>
+                <div style="width:40px;text-align:right;font-size:13px;font-weight:700;color:${scoreColor(score)}">${score}</div>
+              </div>`).join('')}
+          </div>
+        </div>`:''}
+    </div>
+  `;
+}
+
+function renderPlan(plan) {
+  const sprints = plan.sprints || [];
+  return `
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--azul-marino)">${plan.titulo||'Plan de trabajo'}</div>
+          ${plan.objetivo_general?`<div style="font-size:13px;color:var(--gris-suave);margin-top:4px">${plan.objetivo_general}</div>`:''}
+        </div>
+      </div>
+      ${sprints.map(sprint => `
+        <div class="sprint-card">
+          <div class="sprint-header">
+            <div>
+              <div style="font-size:14px;font-weight:700">Sprint ${sprint.numero}: ${sprint.titulo||''}</div>
+              ${sprint.fecha_inicio?`<div style="font-size:11px;opacity:0.7">${sprint.fecha_inicio} → ${sprint.fecha_fin||'?'}</div>`:''}
+            </div>
+            <span class="badge ${sprint.estado==='completado'?'badge-green':sprint.estado==='en_progreso'?'badge-yellow':'badge-gray'}">${sprint.estado||'pendiente'}</span>
+          </div>
+          <div class="sprint-body">
+            ${sprint.okr_objetivo?`<div style="font-size:13px;font-weight:600;color:var(--azul-marino);margin-bottom:10px">🎯 ${sprint.okr_objetivo}</div>`:''}
+            ${(sprint.acciones||[]).map(ac=>`
+              <div class="accion-row">
+                <div class="semaforo ${ac.semaforo||'verde'}"></div>
+                <div style="flex:1;font-size:13px">${ac.titulo}</div>
+                <div style="font-size:12px;color:var(--gris-suave)">${ac.responsable||''}</div>
+                <span class="badge ${ac.estado==='completado'?'badge-green':ac.estado==='en_progreso'?'badge-yellow':'badge-gray'} " style="font-size:10px">${ac.estado||'pendiente'}</span>
+              </div>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>
+  `;
+}
+
+// ============================================================
+// ÁREA
+// ============================================================
+let clienteIdParaArea = null;
+function openModalArea(clienteId) {
+  clienteIdParaArea = clienteId;
+  ['nombre','responsable','cargo'].forEach(f => document.getElementById('fa-'+f).value = '');
+  document.getElementById('fa-tipo').value = 'ventas';
+  openModal('modal-area');
+}
+
+async function guardarArea() {
+  const nombre = document.getElementById('fa-nombre').value.trim();
+  if (!nombre) return showToast('El nombre del área es requerido', 'error');
+  const data = {
+    cliente_id: clienteIdParaArea,
+    nombre,
+    tipo: document.getElementById('fa-tipo').value,
+    responsable_nombre: document.getElementById('fa-responsable').value,
+    responsable_cargo: document.getElementById('fa-cargo').value,
+  };
+  const { error } = await supabaseClient.schema('consultoria').from('areas').insert(data);
+  if (error) return showToast('Error: ' + error.message, 'error');
+  closeModal('modal-area');
+  showToast('Área creada ✓', 'success');
+  loadClienteDetalle(clienteIdParaArea);
+}
+
+// ============================================================
+// CUESTIONARIO IA
+// ============================================================
+async function abrirCuestionario(areaId, areaNombre, areaTipo) {
+  openModal('modal-cuestionario');
+  document.querySelector('#modal-cuestionario .modal-title').textContent = `Cuestionario — ${areaNombre}`;
+  document.getElementById('modal-cuestionario-body').innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+
+  const { data: existente } = await supabaseClient.schema('consultoria').from('cuestionarios').select('preguntas_json').eq('area_id', areaId).limit(1);
+  if (existente?.[0]?.preguntas_json) {
+    renderCuestionario(existente[0].preguntas_json, areaNombre);
+    return;
+  }
+
+  try {
+    const res = await fetch(CLAUDE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: `Eres un consultor senior de SM Soluciones. Genera cuestionarios de entrevista para diagnóstico organizacional usando metodología McKinsey (hypothesis-driven discovery) y Deloitte (entrevistas semiestructuradas). Responde SOLO en JSON válido, sin texto adicional.`,
+        messages: [{
+          role: 'user',
+          content: `Genera un cuestionario de entrevista para el área de ${areaNombre} (tipo: ${areaTipo}).
+          
+Devuelve JSON con esta estructura exacta:
+{
+  "bloques": [
+    {
+      "titulo": "Operación actual",
+      "descripcion": "Entender cómo funciona el área hoy",
+      "preguntas": ["pregunta 1", "pregunta 2", "pregunta 3", "pregunta 4", "pregunta 5"]
+    },
+    {
+      "titulo": "Puntos de dolor",
+      "descripcion": "Issue Tree BCG - identificar problemas y causas raíz",
+      "preguntas": ["pregunta 1", "pregunta 2", "pregunta 3", "pregunta 4", "pregunta 5"]
+    },
+    {
+      "titulo": "FODA del área",
+      "descripcion": "Fortalezas, debilidades, oportunidades y amenazas",
+      "preguntas": ["pregunta 1", "pregunta 2", "pregunta 3", "pregunta 4"]
+    },
+    {
+      "titulo": "Visión y expectativas",
+      "descripcion": "Qué espera el área del proceso de consultoría",
+      "preguntas": ["pregunta 1", "pregunta 2", "pregunta 3"]
+    }
+  ]
+}`
+        }]
+      })
+    });
+    const json = await res.json();
+    const text = json.content?.[0]?.text || '{}';
+    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+    await supabaseClient.schema('consultoria').from('cuestionarios').insert({ area_id: areaId, cliente_id: clienteActual?.id, preguntas_json: parsed });
+    renderCuestionario(parsed, areaNombre);
+  } catch(e) {
+    document.getElementById('modal-cuestionario-body').innerHTML = `<div style="color:var(--rojo);padding:20px">Error generando cuestionario. Verifica la API key de Claude.</div>`;
+  }
+}
+
+function renderCuestionario(data, areaNombre) {
+  const bloques = data.bloques || [];
+  document.getElementById('modal-cuestionario-body').innerHTML = `
+    <div style="margin-bottom:16px;padding:12px 16px;background:var(--fondo-beige);border-radius:8px">
+      <div style="font-size:12px;color:var(--gris-suave);font-weight:600">SM SOLUCIONES · CUESTIONARIO DE DIAGNÓSTICO</div>
+      <div style="font-size:14px;font-weight:700;color:var(--azul-marino);margin-top:2px">Área: ${areaNombre}</div>
+    </div>
+    ${bloques.map((b,i) => `
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:var(--azul-marino);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">
+          ${i+1}. ${b.titulo}
+        </div>
+        ${b.descripcion?`<div style="font-size:12px;color:var(--gris-suave);margin-bottom:10px;font-style:italic">${b.descripcion}</div>`:''}
+        ${(b.preguntas||[]).map((p,j) => `
+          <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--borde)">
+            <span style="font-size:12px;font-weight:700;color:var(--azul-cielo);min-width:24px">${j+1}.</span>
+            <span style="font-size:13px;line-height:1.5">${p}</span>
+          </div>`).join('')}
+      </div>`).join('')}
+  `;
+}
+
+function imprimirCuestionario() { window.print(); }
+
+// ============================================================
+// TRANSCRIPCIÓN + ANÁLISIS IA
+// ============================================================
+let areaIdParaTrans = null;
+let clienteIdParaTrans = null;
+
+function abrirTranscripcion(areaId, areaNombre, clienteId) {
+  areaIdParaTrans = areaId;
+  clienteIdParaTrans = clienteId;
+  document.getElementById('modal-trans-title').textContent = `Transcripción — ${areaNombre}`;
+  document.getElementById('ft-transcripcion').value = '';
+  document.getElementById('ft-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('ft-participantes').value = '';
+  document.getElementById('trans-form').classList.remove('hidden');
+  document.getElementById('trans-processing').classList.add('hidden');
+  document.getElementById('trans-footer').classList.remove('hidden');
+  openModal('modal-transcripcion');
+}
+
+async function procesarTranscripcion() {
+  const trans = document.getElementById('ft-transcripcion').value.trim();
+  if (!trans || trans.length < 100) return showToast('La transcripción es muy corta', 'error');
+
+  document.getElementById('trans-form').classList.add('hidden');
+  document.getElementById('trans-footer').classList.add('hidden');
+  document.getElementById('trans-processing').classList.remove('hidden');
+
+  const progressSteps = [
+    'Procesando transcripción...',
+    'Aplicando Issue Tree BCG...',
+    'Construyendo Pain/Gain Matrix KPMG...',
+    'Evaluando madurez PwC (1-5)...',
+    'Generando FODA del área...',
+    'Calculando score 0-100...',
+  ];
+  let step = 0;
+  const progressBar = document.getElementById('trans-progress-bar');
+  const progressText = document.getElementById('trans-progress-text');
+  const interval = setInterval(() => {
+    step = Math.min(step + 1, progressSteps.length - 1);
+    progressBar.style.width = ((step+1) / progressSteps.length * 90) + '%';
+    progressText.textContent = progressSteps[step];
+  }, 1200);
+
+  const { data: sesion, error: se } = await supabaseClient.schema('consultoria').from('sesiones').insert({
+    area_id: areaIdParaTrans, cliente_id: clienteIdParaTrans,
+    transcripcion: trans, fecha_sesion: document.getElementById('ft-fecha').value,
+    participantes: document.getElementById('ft-participantes').value, procesada: false
+  }).select().single();
+
+  if (se) { clearInterval(interval); return showToast('Error guardando sesión', 'error'); }
+
+  try {
+    const { data: areaData } = await supabaseClient.schema('consultoria').from('areas').select('nombre,tipo').eq('id', areaIdParaTrans).single();
+    const { data: clienteData } = await supabaseClient.schema('consultoria').from('clientes').select('nombre_empresa,giro').eq('id', clienteIdParaTrans).single();
+
+    const res = await fetch(CLAUDE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: `Eres un consultor senior de SM Soluciones. Analizas transcripciones usando metodología de las grandes consultoras: McKinsey (hypothesis-driven), BCG (Issue Tree), KPMG (Pain/Gain Matrix), PwC (Maturity Model 1-5), Deloitte (stakeholder analysis). Responde SOLO en JSON válido, sin texto adicional ni markdown.`,
+        messages: [{
+          role: 'user',
+          content: `Analiza esta transcripción del área ${areaData?.nombre} de la empresa ${clienteData?.nombre_empresa} (${clienteData?.giro}).
+
+TRANSCRIPCIÓN:
+${trans.substring(0, 6000)}
+
+Devuelve JSON con esta estructura exacta:
+{
+  "puntos_dolor": ["dolor 1", "dolor 2", "dolor 3", "dolor 4", "dolor 5"],
+  "causa_raiz": {"problema_principal": "...", "causas": ["causa 1", "causa 2", "causa 3"]},
+  "oportunidades": ["oportunidad 1", "oportunidad 2", "oportunidad 3"],
+  "fortalezas": ["fortaleza 1", "fortaleza 2", "fortaleza 3"],
+  "debilidades": ["debilidad 1", "debilidad 2", "debilidad 3"],
+  "amenazas": ["amenaza 1", "amenaza 2"],
+  "nivel_madurez": 2,
+  "score_area": 45,
+  "resumen_ejecutivo": "Párrafo ejecutivo de 3-4 oraciones con los hallazgos más críticos del área."
+}`
+        }]
+      })
+    });
+
+    const json = await res.json();
+    const text = json.content?.[0]?.text || '{}';
+    const analisis = JSON.parse(text.replace(/```json|```/g,'').trim());
+
+    await supabaseClient.schema('consultoria').from('analisis').insert({
+      sesion_id: sesion.id, area_id: areaIdParaTrans, cliente_id: clienteIdParaTrans, ...analisis
+    });
+    await supabaseClient.schema('consultoria').from('sesiones').update({ procesada: true }).eq('id', sesion.id);
+    await supabaseClient.schema('consultoria').from('areas').update({
+      nivel_madurez: analisis.nivel_madurez || 1,
+      score_madurez: analisis.score_area || 0
+    }).eq('id', areaIdParaTrans);
+
+    clearInterval(interval);
+    progressBar.style.width = '100%';
+    progressText.textContent = '✓ Análisis completado';
+
+    setTimeout(() => {
+      closeModal('modal-transcripcion');
+      showToast('Transcripción analizada ✓', 'success');
+      loadClienteDetalle(clienteIdParaTrans);
+    }, 1000);
+
+  } catch(e) {
+    clearInterval(interval);
+    showToast('Error en análisis IA: ' + e.message, 'error');
+    closeModal('modal-transcripcion');
+  }
+}
+
+// ============================================================
+// DIAGNÓSTICO CONSOLIDADO IA
+// ============================================================
+async function generarDiagnosticoConsolidado(clienteId) {
+  showToast('Generando diagnóstico con IA...', '');
+  const { data: analisis } = await supabaseClient.schema('consultoria').from('analisis').select('*, areas(nombre)').eq('cliente_id', clienteId);
+  const { data: cliente } = await supabaseClient.schema('consultoria').from('clientes').select('*').eq('id', clienteId).single();
+
+  if (!analisis?.length) return showToast('Procesa al menos una transcripción primero', 'error');
+
+  const resumen = analisis.map(a => `
+    Área: ${a.areas?.nombre}
+    Score: ${a.score_area} | Madurez: ${a.nivel_madurez}/5
+    Dolores: ${(a.puntos_dolor||[]).join(', ')}
+    Fortalezas: ${(a.fortalezas||[]).join(', ')}
+    Debilidades: ${(a.debilidades||[]).join(', ')}
+    Resumen: ${a.resumen_ejecutivo||''}
+  `).join('\n---\n');
+
+  try {
+    const res = await fetch(CLAUDE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: `Eres consultor senior de SM Soluciones. Generas diagnósticos ejecutivos y planes de trabajo basados en metodología McKinsey (Pirámide de Minto), FODA+CAME (Accenture), Porter, y planes Agile con OKRs. Responde SOLO en JSON válido.`,
+        messages: [{
+          role: 'user',
+          content: `Genera diagnóstico consolidado y plan de trabajo para ${cliente.nombre_empresa} (${cliente.giro}).
+
+ANÁLISIS POR ÁREA:
+${resumen}
+
+Devuelve JSON:
+{
+  "foda_fortalezas": ["f1","f2","f3"],
+  "foda_debilidades": ["d1","d2","d3"],
+  "foda_oportunidades": ["o1","o2","o3"],
+  "foda_amenazas": ["a1","a2"],
+  "score_global": 55,
+  "scorecard_areas": {"NombreArea1": 60, "NombreArea2": 45},
+  "resumen_ejecutivo": "Párrafo ejecutivo de 4-5 oraciones usando Pirámide de Minto.",
+  "hallazgos_criticos": ["hallazgo 1", "hallazgo 2", "hallazgo 3"],
+  "plan": {
+    "titulo": "Plan de intervención SM Soluciones",
+    "objetivo_general": "Objetivo general del plan",
+    "sprints": [
+      {
+        "numero": 1,
+        "titulo": "Titulo sprint 1",
+        "objetivo": "Objetivo del sprint",
+        "okr_objetivo": "OKR objetivo",
+        "fecha_inicio": "2026-06-23",
+        "fecha_fin": "2026-06-27",
+        "acciones": [
+          {"titulo": "Acción 1", "responsable": "Pako", "prioridad": "urgente_importante", "semaforo": "verde"},
+          {"titulo": "Acción 2", "responsable": "Alan", "prioridad": "importante", "semaforo": "verde"}
+        ]
+      },
+      {
+        "numero": 2,
+        "titulo": "Titulo sprint 2",
+        "objetivo": "Objetivo del sprint 2",
+        "okr_objetivo": "OKR objetivo 2",
+        "fecha_inicio": "2026-06-30",
+        "fecha_fin": "2026-07-04",
+        "acciones": [
+          {"titulo": "Acción 1", "responsable": "Pako", "prioridad": "importante", "semaforo": "verde"}
+        ]
+      }
+    ]
+  }
+}`
+        }]
+      })
+    });
+
+    const json = await res.json();
+    const text = json.content?.[0]?.text || '{}';
+    const data = JSON.parse(text.replace(/```json|```/g,'').trim());
+
+    const { data: diag } = await supabaseClient.schema('consultoria').from('diagnosticos').insert({
+      cliente_id: clienteId,
+      foda_fortalezas: data.foda_fortalezas,
+      foda_debilidades: data.foda_debilidades,
+      foda_oportunidades: data.foda_oportunidades,
+      foda_amenazas: data.foda_amenazas,
+      score_global: data.score_global,
+      scorecard_areas: data.scorecard_areas,
+      resumen_ejecutivo: data.resumen_ejecutivo,
+      hallazgos_criticos: data.hallazgos_criticos
+    }).select().single();
+
+    await supabaseClient.schema('consultoria').from('clientes').update({ score_global: data.score_global }).eq('id', clienteId);
+
+    if (data.plan) {
+      const { data: plan } = await supabaseClient.schema('consultoria').from('planes_trabajo').insert({
+        cliente_id: clienteId, diagnostico_id: diag.id,
+        titulo: data.plan.titulo, objetivo_general: data.plan.objetivo_general
+      }).select().single();
+
+      for (const sprint of (data.plan.sprints || [])) {
+        const { data: sprintDb } = await supabaseClient.schema('consultoria').from('sprints').insert({
+          plan_id: plan.id, cliente_id: clienteId,
+          numero: sprint.numero, titulo: sprint.titulo,
+          objetivo: sprint.objetivo, okr_objetivo: sprint.okr_objetivo,
+          fecha_inicio: sprint.fecha_inicio, fecha_fin: sprint.fecha_fin
+        }).select().single();
+
+        for (const accion of (sprint.acciones || [])) {
+          await supabaseClient.schema('consultoria').from('acciones').insert({
+            sprint_id: sprintDb.id, plan_id: plan.id, cliente_id: clienteId,
+            titulo: accion.titulo, responsable: accion.responsable,
+            prioridad: accion.prioridad, semaforo: accion.semaforo
+          });
+        }
+      }
+    }
+
+    showToast('Diagnóstico y plan generados ✓', 'success');
+    await loadSidebarClientes();
+    loadClienteDetalle(clienteId);
+    showTab('diagnostico');
+
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// ============================================================
+// EXPORT PDF
+// ============================================================
+async function exportarPDF(clienteId) {
+  const { jsPDF } = window.jspdf;
+  const { data: cliente } = await supabaseClient.schema('consultoria').from('clientes').select('*').eq('id', clienteId).single();
+  const { data: diag } = await supabaseClient.schema('consultoria').from('diagnosticos').select('*').eq('cliente_id', clienteId).order('version', {ascending:false}).limit(1);
+  const d = diag?.[0];
+
+  const doc = new jsPDF();
+  const azul = [27, 47, 110];
+  const cielo = [77, 184, 232];
+  const gris = [108, 117, 125];
+
+  // Header
+  doc.setFillColor(...azul);
+  doc.rect(0, 0, 210, 35, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18); doc.setFont('helvetica','bold');
+  doc.text('SM SOLUCIONES', 14, 15);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text('Different results require different measures', 14, 22);
+  doc.setFontSize(12); doc.setFont('helvetica','bold');
+  doc.text('DIAGNÓSTICO EJECUTIVO', 14, 30);
+
+  // Info cliente
+  doc.setTextColor(...azul);
+  doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text(cliente.nombre_empresa, 14, 50);
+  doc.setTextColor(...gris);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text(`${cliente.giro||''} · ${cliente.ubicacion||''} · ${new Date().toLocaleDateString('es-MX')}`, 14, 57);
+
+  // Score
+  doc.setFillColor(...cielo);
+  doc.roundedRect(150, 42, 46, 20, 3, 3, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(22); doc.setFont('helvetica','bold');
+  doc.text(String(cliente.score_global||'—'), 173, 55, {align:'center'});
+  doc.setFontSize(8); doc.text('SCORE GLOBAL /100', 173, 60, {align:'center'});
+
+  // Resumen ejecutivo
+  if (d?.resumen_ejecutivo) {
+    doc.setFillColor(250,249,247);
+    doc.rect(14, 68, 182, 30, 'F');
+    doc.setTextColor(...azul);
+    doc.setFontSize(10); doc.setFont('helvetica','bold');
+    doc.text('RESUMEN EJECUTIVO', 18, 75);
+    doc.setTextColor(...gris);
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    const lines = doc.splitTextToSize(d.resumen_ejecutivo, 174);
+    doc.text(lines.slice(0,4), 18, 82);
+  }
+
+  // FODA
+  let y = 108;
+  doc.setTextColor(...azul);
+  doc.setFontSize(12); doc.setFont('helvetica','bold');
+  doc.text('ANÁLISIS FODA', 14, y); y += 8;
+
+  const fodaItems = [
+    { label: 'FORTALEZAS', items: d?.foda_fortalezas||[], color: [16,185,129] },
+    { label: 'OPORTUNIDADES', items: d?.foda_oportunidades||[], color: [77,184,232] },
+    { label: 'DEBILIDADES', items: d?.foda_debilidades||[], color: [245,158,11] },
+    { label: 'AMENAZAS', items: d?.foda_amenazas||[], color: [239,68,68] },
+  ];
+
+  fodaItems.forEach((f, i) => {
+    const col = i % 2 === 0 ? 14 : 109;
+    if (i === 2) y += 44;
+    doc.setFillColor(...f.color);
+    doc.rect(col, y, 91, 5, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(8); doc.setFont('helvetica','bold');
+    doc.text(f.label, col+3, y+3.5);
+    doc.setTextColor(50,50,50);
+    doc.setFontSize(8); doc.setFont('helvetica','normal');
+    f.items.slice(0,4).forEach((item,j) => {
+      doc.text('• ' + item.substring(0,50), col+3, y+9+(j*6));
+    });
+  });
+
+  doc.save(`diagnostico_${cliente.nombre_empresa.replace(/\s/g,'_')}.pdf`);
+  showToast('PDF generado ✓', 'success');
+}
+
+// ============================================================
+// EXPORT WORD (HTML→BLOB)
+// ============================================================
+async function exportarWord(clienteId) {
+  const { data: cliente } = await supabaseClient.schema('consultoria').from('clientes').select('*').eq('id', clienteId).single();
+  const { data: diag } = await supabaseClient.schema('consultoria').from('diagnosticos').select('*').eq('cliente_id', clienteId).order('version',{ascending:false}).limit(1);
+  const { data: plan } = await supabaseClient.schema('consultoria').from('planes_trabajo').select('*, sprints(*, acciones(*))').eq('cliente_id', clienteId).order('created_at',{ascending:false}).limit(1);
+  const d = diag?.[0]; const p = plan?.[0];
+
+  const html = `
+    <html><head><meta charset="UTF-8">
+    <style>
+      body{font-family:Arial,sans-serif;color:#2C2C2C;margin:40px}
+      h1{color:#1B2F6E;font-size:22px;border-bottom:3px solid #4DB8E8;padding-bottom:8px}
+      h2{color:#1B2F6E;font-size:16px;margin-top:24px}
+      h3{color:#2B5BA1;font-size:13px}
+      .header{background:#1B2F6E;color:white;padding:20px;margin:-40px -40px 30px}
+      .header h1{color:white;border:none}
+      .tagline{font-size:11px;opacity:0.7}
+      .score{font-size:36px;font-weight:900;color:#4DB8E8}
+      .foda-table{width:100%;border-collapse:collapse;margin:16px 0}
+      .foda-table td{border:1px solid #E5E7EB;padding:12px;vertical-align:top;width:50%}
+      .foda-f{background:#F0FDF4}.foda-o{background:#EFF6FF}.foda-d{background:#FFFBEB}.foda-a{background:#FEF2F2}
+      .foda-label{font-weight:700;font-size:12px;text-transform:uppercase;margin-bottom:8px}
+      ul{margin:0;padding-left:16px}
+      li{font-size:12px;margin-bottom:4px}
+      .sprint{border:1px solid #E5E7EB;border-radius:8px;margin-bottom:16px;overflow:hidden}
+      .sprint-h{background:#1B2F6E;color:white;padding:10px 16px;font-weight:700;font-size:13px}
+      .sprint-b{padding:12px 16px}
+      .accion{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #F3F4F6;font-size:12px}
+      .semaforo{width:8px;height:8px;border-radius:50%;background:#10B981;margin-top:3px;flex-shrink:0}
+    </style></head>
+    <body>
+    <div class="header">
+      <div style="font-size:20px;font-weight:900">SM SOLUCIONES</div>
+      <div class="tagline">Different results require different measures</div>
+      <div style="font-size:14px;margin-top:8px">DIAGNÓSTICO EJECUTIVO DE CONSULTORÍA</div>
+    </div>
+
+    <h1>${cliente.nombre_empresa}</h1>
+    <p><strong>Giro:</strong> ${cliente.giro||'—'} &nbsp;|&nbsp; <strong>Ubicación:</strong> ${cliente.ubicacion||'—'} &nbsp;|&nbsp; <strong>Empleados:</strong> ${cliente.num_empleados||'—'}</p>
+    <p><strong>Contacto:</strong> ${cliente.nombre_dueno||''} ${cliente.nombre_contacto?'/ '+cliente.nombre_contacto:''}</p>
+    <p><strong>Fecha:</strong> ${new Date().toLocaleDateString('es-MX')} &nbsp;|&nbsp; <span class="score">${cliente.score_global||'—'}</span><span style="font-size:14px;color:#6B7280"> / 100 Score global</span></p>
+
+    ${d?.resumen_ejecutivo?`<h2>Resumen ejecutivo</h2><p style="line-height:1.7;font-size:13px">${d.resumen_ejecutivo}</p>`:''}
+
+    ${d?`<h2>Análisis FODA</h2>
+    <table class="foda-table">
+      <tr>
+        <td class="foda-f"><div class="foda-label" style="color:#065F46">Fortalezas</div><ul>${(d.foda_fortalezas||[]).map(i=>`<li>${i}</li>`).join('')}</ul></td>
+        <td class="foda-o"><div class="foda-label" style="color:#1E40AF">Oportunidades</div><ul>${(d.foda_oportunidades||[]).map(i=>`<li>${i}</li>`).join('')}</ul></td>
+      </tr>
+      <tr>
+        <td class="foda-d"><div class="foda-label" style="color:#92400E">Debilidades</div><ul>${(d.foda_debilidades||[]).map(i=>`<li>${i}</li>`).join('')}</ul></td>
+        <td class="foda-a"><div class="foda-label" style="color:#991B1B">Amenazas</div><ul>${(d.foda_amenazas||[]).map(i=>`<li>${i}</li>`).join('')}</ul></td>
+      </tr>
+    </table>`:''}
+
+    ${p?`<h2>${p.titulo||'Plan de trabajo'}</h2>
+    <p style="font-size:13px">${p.objetivo_general||''}</p>
+    ${(p.sprints||[]).map(s=>`
+      <div class="sprint">
+        <div class="sprint-h">Sprint ${s.numero}: ${s.titulo} &nbsp;|&nbsp; ${s.fecha_inicio||''} → ${s.fecha_fin||''}</div>
+        <div class="sprint-b">
+          ${s.okr_objetivo?`<p style="font-size:12px;font-weight:700;color:#1B2F6E">🎯 ${s.okr_objetivo}</p>`:''}
+          ${(s.acciones||[]).map(a=>`<div class="accion"><div class="semaforo"></div><div style="flex:1">${a.titulo}</div><div style="color:#6B7280">${a.responsable||''}</div></div>`).join('')}
+        </div>
+      </div>`).join('')}`:''}
+
+    <div style="margin-top:40px;padding-top:16px;border-top:2px solid #E5E7EB;text-align:center;font-size:11px;color:#6B7280">
+      SM Soluciones · Different results require different measures · ${new Date().toLocaleDateString('es-MX')}
+    </div>
+    </body></html>
+  `;
+
+  const blob = new Blob(['\ufeff'+html], {type:'application/msword'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `diagnostico_${cliente.nombre_empresa.replace(/\s/g,'_')}.doc`;
+  a.click();
+  showToast('Word generado ✓', 'success');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.onload = async () => {
+  initSupabase();
+  await loadSidebarClientes();
+  loadDashboard();
+};
+</script>
+</body>
+</html>
