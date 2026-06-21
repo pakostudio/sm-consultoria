@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>SM Soluciones — Plataforma de Consultoría</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><rect width=%27100%27 height=%27100%27 rx=%2720%27 fill=%27%231B2F6E%27/><text y=%27.9em%27 font-size=%2770%27 x=%2750%27 text-anchor=%27middle%27 fill=%27%234DB8E8%27>S</text></svg>"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
@@ -311,6 +312,9 @@
   <div class="topbar">
     <div class="topbar-title" id="topbar-title">Dashboard</div>
     <div class="topbar-actions">
+      <button class="btn btn-icon" onclick="recargarDatos()" title="Recargar datos" id="btn-reload">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
       <button class="btn btn-sky" onclick="openModalCliente()">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
         Nuevo cliente
@@ -1560,6 +1564,21 @@ async function exportarWord(clienteId) {
   a.download = `diagnostico_${cliente.nombre_empresa.replace(/\s/g,'_')}.doc`;
   a.click();
   showToast('Word generado ✓', 'success');
+}
+
+// ============================================================
+// RECARGAR
+// ============================================================
+async function recargarDatos() {
+  const btn = document.getElementById('btn-reload');
+  btn.style.animation = 'spin 0.6s linear infinite';
+  await loadSidebarClientes();
+  const page = document.querySelector('.page.active')?.id?.replace('page-','');
+  if (page === 'dashboard') await loadDashboard();
+  if (page === 'clientes') await loadClientes();
+  if (page === 'cliente' && clienteActual) await loadClienteDetalle(clienteActual.id);
+  btn.style.animation = '';
+  showToast('Datos actualizados ✓', 'success');
 }
 
 // ============================================================
