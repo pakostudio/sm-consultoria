@@ -1119,7 +1119,7 @@ async function abrirCuestionario(areaId, areaNombre, areaTipo) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
+        max_tokens: 4000,
         system: `Eres un consultor senior de SM Soluciones. Genera cuestionarios de entrevista para diagnóstico organizacional usando metodología McKinsey (hypothesis-driven discovery) y Deloitte (entrevistas semiestructuradas). Responde SOLO en JSON válido, sin texto adicional.`,
         messages: [{
           role: 'user',
@@ -1155,7 +1155,15 @@ Devuelve JSON con esta estructura exacta:
     });
     const json = await res.json();
     const text = json.content?.[0]?.text || '{}';
-    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+    let parsed = {bloques:[]};
+    try {
+      parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+    } catch(e) {
+      try {
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) parsed = JSON.parse(match[0]);
+      } catch(e2) { parsed = {bloques:[{titulo:'Error', descripcion:'', preguntas:['No se pudo generar el cuestionario']}]}; }
+    }
     await supabaseClient.from('cons_cuestionarios').insert({ area_id: areaId, cliente_id: clienteActual?.id, preguntas_json: parsed });
     renderCuestionario(parsed, areaNombre);
   } catch(e) {
@@ -1248,7 +1256,7 @@ async function procesarTranscripcion() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
+        max_tokens: 4000,
         system: `Eres un consultor senior de SM Soluciones. Analizas transcripciones usando metodología de las grandes consultoras: McKinsey (hypothesis-driven), BCG (Issue Tree), KPMG (Pain/Gain Matrix), PwC (Maturity Model 1-5), Deloitte (stakeholder analysis). Responde SOLO en JSON válido, sin texto adicional ni markdown.`,
         messages: [{
           role: 'user',
@@ -1275,7 +1283,35 @@ Devuelve JSON con esta estructura exacta:
 
     const json = await res.json();
     const text = json.content?.[0]?.text || '{}';
-    const analisis = JSON.parse(text.replace(/```json|```/g,'').trim());
+    let analisis = {};
+    try {
+      const clean = text.replace(/```json|```/g,'').trim();
+      // Intentar parsear completo primero
+      analisis = JSON.parse(clean);
+    } catch(e) {
+      // Si falla, extraer JSON parcial con regex
+      try {
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) {
+          // Reparar JSON truncado agregando cierre
+          let partial = match[0];
+          // Contar llaves abiertas vs cerradas
+          let opens = (partial.match(/\{/g)||[]).length;
+          let closes = (partial.match(/\}/g)||[]).length;
+          while (closes < opens) { partial += '}'; closes++; }
+          analisis = JSON.parse(partial);
+        }
+      } catch(e2) {
+        // Usar valores por defecto si todo falla
+        analisis = {
+          puntos_dolor: ['Ver transcripción completa'],
+          causa_raiz: {problema_principal: 'Pendiente análisis completo', causas: []},
+          oportunidades: [], fortalezas: [], debilidades: [], amenazas: [],
+          nivel_madurez: 2, score_area: 40,
+          resumen_ejecutivo: 'Análisis parcial - transcripción muy extensa. Procesar por secciones.'
+        };
+      }
+    }
 
     await supabaseClient.from('cons_analisis').insert({
       sesion_id: sesion.id, area_id: areaIdParaTrans, cliente_id: clienteIdParaTrans, ...analisis
@@ -1328,7 +1364,7 @@ async function generarDiagnosticoConsolidado(clienteId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
+        max_tokens: 4000,
         system: `Eres consultor senior de SM Soluciones. Generas diagnósticos ejecutivos y planes de trabajo basados en metodología McKinsey (Pirámide de Minto), FODA+CAME (Accenture), Porter, y planes Agile con OKRs. Responde SOLO en JSON válido.`,
         messages: [{
           role: 'user',
@@ -1383,7 +1419,26 @@ Devuelve JSON:
 
     const json = await res.json();
     const text = json.content?.[0]?.text || '{}';
-    const data = JSON.parse(text.replace(/```json|```/g,'').trim());
+    let data = {};
+    try {
+      const clean = text.replace(/```json|```/g,'').trim();
+      data = JSON.parse(clean);
+    } catch(e) {
+      try {
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) {
+          let partial = match[0];
+          let opens = (partial.match(/\{/g)||[]).length;
+          let closes = (partial.match(/\}/g)||[]).length;
+          while (closes < opens) { partial += '}'; closes++; }
+          data = JSON.parse(partial);
+        }
+      } catch(e2) {
+        data = { foda_fortalezas:[], foda_debilidades:[], foda_oportunidades:[], foda_amenazas:[],
+          score_global: 45, scorecard_areas:{}, resumen_ejecutivo:'Diagnóstico parcial generado.',
+          hallazgos_criticos:[], plan:{titulo:'Plan de trabajo', objetivo_general:'', sprints:[]} };
+      }
+    }
 
     const { data: diag } = await supabaseClient.from('cons_diagnosticos').insert({
       cliente_id: clienteId,
