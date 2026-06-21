@@ -301,7 +301,7 @@
     </div>
   </div>
 
-  <div style="padding:16px 20px;border-top:1px solid rgba(255,255,255,0.1)">
+  <div style="padding:12px 20px;border-top:1px solid rgba(255,255,255,0.1)"><div onclick="abrirConfiguracion()" style="cursor:pointer;padding:8px 12px;border-radius:8px;background:rgba(77,184,232,0.15);color:var(--azul-cielo);font-size:12px;font-weight:600;margin-bottom:8px;text-align:center">⚙️ Configurar API Key</div>
     <div style="font-size:11px;color:rgba(255,255,255,0.3)">SM Soluciones © 2026</div>
     <div style="font-size:11px;color:rgba(255,255,255,0.2)">Different results require<br>different measures</div>
   </div>
@@ -572,6 +572,28 @@
   </div>
 </div>
 
+<!-- MODAL CONFIG -->
+<div class="modal-overlay hidden" id="modal-config">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title">⚙️ Configurar Claude API Key</div>
+      <button class="modal-close" onclick="closeModal('modal-config')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--gris-suave);margin-bottom:20px">Esta key se guarda solo en tu navegador. Nunca en el código ni en GitHub.</p>
+      <div class="form-group">
+        <label class="form-label">Claude API Key</label>
+        <input class="form-input" id="config-apikey" type="text" placeholder="sk-ant-api03-..."/>
+      </div>
+      <div id="config-status" style="font-size:12px;margin-top:8px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-config')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarConfigKey()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -582,7 +604,7 @@
 const SUPABASE_URL = 'https://bljqlibgwvpflrtwgsef.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_09cUDYT1aBp4lJF1l1duUA_WLhJXCfb';
 const CLAUDE_API = 'https://api.anthropic.com/v1/messages';
-const CLAUDE_KEY = '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';
+const CLAUDE_KEY = localStorage.getItem('sm_claude_key') || '';
 
 let supabaseClient = null;
 let clienteActual = null;
@@ -1593,3 +1615,60 @@ window.onload = async () => {
 </script>
 </body>
 </html>
+<script>
+// Reemplazar window.onload con versión segura
+window.onload = async () => {
+  initSupabase();
+  const key = localStorage.getItem('sm_claude_key');
+  if (!key) showKeyModal();
+  await loadSidebarClientes();
+  loadDashboard();
+};
+
+function showKeyModal() {
+  let modal = document.getElementById('modal-apikey');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-apikey';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `<div class="modal" style="max-width:480px">
+      <div class="modal-header"><div class="modal-title">🔑 Claude API Key</div></div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--gris-suave);margin-bottom:16px">Se guarda solo en tu navegador. Nunca en GitHub.</p>
+        <div class="form-group">
+          <label class="form-label">API Key</label>
+          <input class="form-input" id="input-apikey" type="password" placeholder="sk-ant-api03-..."/>
+        </div>
+        <div style="font-size:12px;color:var(--gris-suave)">Obtenla en <strong>platform.claude.com → Claves de API</strong></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="guardarApiKey()">Guardar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+  } else { modal.classList.remove('hidden'); }
+}
+
+function guardarApiKey() {
+  const key = document.getElementById('input-apikey').value.trim();
+  if (!key.startsWith('sk-ant-')) return showToast('Key inválida', 'error');
+  localStorage.setItem('sm_claude_key', key);
+  document.getElementById('modal-apikey').classList.add('hidden');
+  showToast('API Key guardada ✓', 'success');
+}
+</script>
+<script>
+function abrirConfiguracion() {
+  const existing = localStorage.getItem('sm_claude_key') || '';
+  document.getElementById('config-apikey').value = existing;
+  document.getElementById('config-status').innerHTML = existing ? '<span style="color:var(--verde)">✓ Key configurada</span>' : '<span style="color:var(--gris-suave)">Sin key configurada</span>';
+  openModal('modal-config');
+}
+function guardarConfigKey() {
+  const key = document.getElementById('config-apikey').value.trim();
+  if (!key) { document.getElementById('config-status').innerHTML = '<span style="color:var(--rojo)">Ingresa una key válida</span>'; return; }
+  localStorage.setItem('sm_claude_key', key);
+  document.getElementById('config-status').innerHTML = '<span style="color:var(--verde)">✓ Guardada correctamente</span>';
+  setTimeout(() => { closeModal('modal-config'); showToast('API Key guardada ✓', 'success'); }, 800);
+}
+</script>
